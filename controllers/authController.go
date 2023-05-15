@@ -4,7 +4,10 @@ import (
 	"codigo-fluente/database"
 	"codigo-fluente/models"
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"strconv"
+	"time"
 )
 
 func Register(c *fiber.Ctx) error {
@@ -57,6 +60,18 @@ func Login(c *fiber.Ctx) error {
 			"message": "Incorret Password",
 		})
 	}
-	
-	return c.JSON(user)
+
+	claims := jwt.RegisteredClaims{
+		ID:        strconv.Itoa(int(user.ID)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+	}
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := jwtToken.SignedString([]byte("secret"))
+	if err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+
+	return c.JSON(fiber.Map{
+		"jwt": token,
+	})
 }
