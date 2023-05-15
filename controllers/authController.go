@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+type Claims struct {
+	jwt.RegisteredClaims
+}
+
 func Register(c *fiber.Ctx) error {
 	var data map[string]string
 	err := c.BodyParser(&data)
@@ -62,7 +66,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	claims := jwt.RegisteredClaims{
-		ID:        strconv.Itoa(int(user.ID)),
+		Issuer:    strconv.Itoa(int(user.ID)),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -83,4 +87,24 @@ func Login(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"jwt": token,
 	})
+
+}
+
+func User(c *fiber.Ctx) error {
+	cookie := c.Cookies("jwt")
+	token, err := jwt.ParseWithClaims(cookie, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte("secret"), nil
+	})
+	if err != nil || !token.Valid {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unautenticated",
+		})
+	}
+	claims := token.Claims.(*Claims)
+	id := claims.Issuer
+	var user models.User
+	database.DB.Where("id = ?", id).First(&user)
+	return c.JSON(user)
+
 }
