@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,6 +35,17 @@ func Register(c *fiber.Ctx) error {
 		Password:  password,
 	}
 
+	if len(strings.TrimSpace(user.Email)) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"messagem": "email é obrigatorio",
+		})
+	}
+
+	if result := database.DB.Where("email = ?", data["email"]).First(&user); result.RowsAffected > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"messagem": "email invalido",
+		})
+	}
 	database.DB.Create(&user)
 
 	return c.JSON(user)
@@ -106,5 +118,20 @@ func User(c *fiber.Ctx) error {
 	var user models.User
 	database.DB.Where("id = ?", id).First(&user)
 	return c.JSON(user)
+
+}
+
+func Getusers(c *fiber.Ctx) error {
+
+	var users []models.User
+
+	database.DB.Find(&users)
+	if len(users) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "nenhum usuario encontrado",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(users)
 
 }
